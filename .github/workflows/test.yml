@@ -53,12 +53,15 @@ jobs:
           pip install -r requirements.txt
           playwright install
 
+      - name: Set PYTHONPATH for CI
+        run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fastapi_db
         run: |
           source venv/bin/activate
-          pytest tests/unit/ --cov=models --junitxml=test-results/unit.xml
+          pytest tests/unit/ --cov=app --junitxml=test-results/unit.xml
           pytest tests/integration/ --junitxml=test-results/integration.xml
           pytest tests/e2e/ --junitxml=test-results/e2e.xml
 
