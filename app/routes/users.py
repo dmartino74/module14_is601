@@ -11,19 +11,18 @@ router = APIRouter(tags=["users"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    # bcrypt only supports passwords up to 72 bytes
     encoded = password.encode("utf-8")
     if len(encoded) > 72:
-        # safer to reject than silently truncate
+        # reject instead of letting bcrypt crash
         raise HTTPException(status_code=400, detail="Password too long (max 72 bytes)")
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     encoded = plain_password.encode("utf-8")
     if len(encoded) > 72:
-        # match the same rule as hash_password
-        encoded = encoded[:72]
-    return pwd_context.verify(encoded.decode("utf-8", errors="ignore"), hashed_password)
+        # reject consistently here too
+        raise HTTPException(status_code=400, detail="Password too long (max 72 bytes)")
+    return pwd_context.verify(plain_password, hashed_password)
 
 @router.post("/register", response_model=UserRead)
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -45,5 +44,3 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     return {"message": "Login successful", "user_id": db_user.id}
-
-
