@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Calculations BREAD</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input, select { margin: 5px; }
+        .section { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Calculations BREAD Demo</h1>
+
+    <div class="section" id="auth">
+        <h2>Register / Login</h2>
+        <input id="reg_username" placeholder="username">
+        <input id="reg_email" placeholder="email">
+        <input id="reg_password" placeholder="password" type="password">
+        <button id="btn_register">Register</button>
+        <br><br>
+        <input id="login_username" placeholder="username or email">
+        <input id="login_password" placeholder="password" type="password">
+        <button id="btn_login">Login</button>
+        <div id="auth_msg"></div>
+    </div>
+
+    <div class="section">
+        <h2>Create Calculation</h2>
+        <input id="a" placeholder="a" type="number">
+        <input id="b" placeholder="b" type="number">
+        <select id="type">
+            <option value="add">Add</option>
+            <option value="subtract">Subtract</option>
+            <option value="multiply">Multiply</option>
+            <option value="divide">Divide</option>
+        </select>
+        <button id="btn_create">Create</button>
+        <div id="create_msg"></div>
+    </div>
+
+    <div class="section">
+        <h2>Browse / Read</h2>
+        <button id="btn_list">List My Calculations</button>
+        <ul id="calc_list"></ul>
+    </div>
+
+    <div class="section">
+        <h2>Edit / Delete by ID</h2>
+        <input id="edit_id" placeholder="calculation id" type="number">
+        <input id="edit_a" placeholder="a" type="number">
+        <input id="edit_b" placeholder="b" type="number">
+        <select id="edit_type">
+            <option value="add">Add</option>
+            <option value="subtract">Subtract</option>
+            <option value="multiply">Multiply</option>
+            <option value="divide">Divide</option>
+        </select>
+        <button id="btn_edit">Edit</button>
+        <button id="btn_delete">Delete</button>
+        <div id="edit_msg"></div>
+    </div>
+
+    <script>
+        let token = null;
+
+        function setMsg(id, msg, isError=false) {
+            const el = document.getElementById(id);
+            el.innerText = msg;
+            el.className = isError ? 'error' : '';
+        }
+
+        document.getElementById('btn_register').addEventListener('click', async ()=>{
+            const username = document.getElementById('reg_username').value;
+            const email = document.getElementById('reg_email').value;
+            const password = document.getElementById('reg_password').value;
+            const resp = await fetch('/users/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
+            const data = await resp.json();
+            if (resp.ok) { token = data.access_token; setMsg('auth_msg','Registered and logged in'); }
+            else setMsg('auth_msg',JSON.stringify(data), true);
+        });
+
+        document.getElementById('btn_login').addEventListener('click', async ()=>{
+            const username = document.getElementById('login_username').value;
+            const password = document.getElementById('login_password').value;
+            const resp = await fetch('/users/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+            const data = await resp.json();
+            if (resp.ok) { token = data.access_token; setMsg('auth_msg','Login successful'); }
+            else setMsg('auth_msg',JSON.stringify(data), true);
+        });
+
+        document.getElementById('btn_create').addEventListener('click', async ()=>{
+            const a = parseFloat(document.getElementById('a').value);
+            const b = parseFloat(document.getElementById('b').value);
+            const type = document.getElementById('type').value;
+            if (isNaN(a) || isNaN(b)) { setMsg('create_msg','Inputs must be numbers', true); return }
+            const headers = {'Content-Type':'application/json'};
+            if (token) headers['Authorization'] = 'Bearer '+token;
+            const resp = await fetch('/calculations',{method:'POST',headers,body:JSON.stringify({a,b,type})});
+            const data = await resp.json();
+            if (resp.ok) setMsg('create_msg','Created id='+data.id);
+            else setMsg('create_msg',JSON.stringify(data), true);
+        });
+
+        document.getElementById('btn_list').addEventListener('click', async ()=>{
+            const headers = {};
+            if (token) headers['Authorization'] = 'Bearer '+token;
+            const resp = await fetch('/calculations',{headers});
+            const data = await resp.json();
+            const ul = document.getElementById('calc_list'); ul.innerHTML = '';
+            if (resp.ok) {
+                data.forEach(c=>{ const li=document.createElement('li'); li.innerText = `#${c.id} ${c.type} ${c.a} & ${c.b} => ${c.result}`; ul.appendChild(li)});
+            } else { setMsg('create_msg',JSON.stringify(data), true); }
+        });
+
+        document.getElementById('btn_edit').addEventListener('click', async ()=>{
+            const id = parseInt(document.getElementById('edit_id').value);
+            const a = parseFloat(document.getElementById('edit_a').value);
+            const b = parseFloat(document.getElementById('edit_b').value);
+            const type = document.getElementById('edit_type').value;
+            if (!id) { setMsg('edit_msg','Provide id', true); return }
+            if (isNaN(a) || isNaN(b)) { setMsg('edit_msg','a and b must be numbers', true); return }
+            const headers = {'Content-Type':'application/json'}; if (token) headers['Authorization']='Bearer '+token;
+            const resp = await fetch(`/calculations/${id}`,{method:'PUT',headers,body:JSON.stringify({a,b,type})});
+            const data = await resp.json();
+            if (resp.ok) setMsg('edit_msg','Updated'); else setMsg('edit_msg',JSON.stringify(data), true);
+        });
+
+        document.getElementById('btn_delete').addEventListener('click', async ()=>{
+            const id = parseInt(document.getElementById('edit_id').value);
+            if (!id) { setMsg('edit_msg','Provide id', true); return }
+            const headers = {}; if (token) headers['Authorization']='Bearer '+token;
+            const resp = await fetch(`/calculations/${id}`,{method:'DELETE',headers});
+            const data = await resp.json();
+            if (resp.ok) setMsg('edit_msg','Deleted'); else setMsg('edit_msg',JSON.stringify(data), true);
+        });
+    </script>
+</body>
+</html>

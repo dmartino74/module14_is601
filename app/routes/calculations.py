@@ -1,37 +1,61 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List
 
 from app.db import get_db
 from app.models.calculation import Calculation
+from app.models.user import User
 from app.operations.schemas.calculation_schemas import CalculationCreate, CalculationRead
+from app.security import decode_access_token
+
+# HTTP bearer security for extracting JWT
+security = HTTPBearer()
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security), db: Depends = Depends(get_db)) -> User:
+    """Dependency to get the currently authenticated user from the Authorization header."""
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    user_id = payload.get("user_id") or payload.get("sub")
+    # If sub is username, prefer explicit user_id; otherwise use user_id
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    # If user_id is username (string), try to find by username
+    if isinstance(user_id, str):
+        user = db.query(User).filter(User.username == user_id).first()
+    else:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 # IMPORTANT: Use /calculations (plural) not /calculate
 router = APIRouter(prefix="/calculations", tags=["calculations"])
 
 
 @router.get("", response_model=List[CalculationRead])
-def browse_calculations(db: Session = Depends(get_db)):
+def browse_calculations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     BROWSE: Get all calculations (GET /calculations)
     """
-    calculations = db.query(Calculation).all()
+    calculations = db.query(Calculation).filter(Calculation.user_id == current_user.id).all()
     return calculations
 
 
 @router.get("/{calculation_id}", response_model=CalculationRead)
-def read_calculation(calculation_id: int, db: Session = Depends(get_db)):
+def read_calculation(calculation_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     READ: Get a single calculation by ID (GET /calculations/{id})
     """
-    calculation = db.query(Calculation).filter(Calculation.id == calculation_id).first()
+    calculation = db.query(Calculation).filter(Calculation.id == calculation_id, Calculation.user_id == current_user.id).first()
     if not calculation:
         raise HTTPException(status_code=404, detail="Calculation not found")
     return calculation
 
 
 @router.post("", response_model=CalculationRead, status_code=200)
-def add_calculation(calc: CalculationCreate, db: Session = Depends(get_db)):
+def add_calculation(calc: CalculationCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     ADD: Create a new calculation (POST /calculations)
     """
@@ -67,7 +91,8 @@ def add_calculation(calc: CalculationCreate, db: Session = Depends(get_db)):
         a=calc.a,
         b=calc.b,
         type=op_type,
-        result=result
+        result=result,
+        user_id=current_user.id
     )
     db.add(new_calc)
     db.commit()
@@ -77,12 +102,12 @@ def add_calculation(calc: CalculationCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{calculation_id}", response_model=CalculationRead)
-def edit_calculation(calculation_id: int, calc: CalculationCreate, db: Session = Depends(get_db)):
+def edit_calculation(calculation_id: int, calc: CalculationCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     EDIT: Update an existing calculation (PUT /calculations/{id})
     """
     # Find existing calculation
-    db_calc = db.query(Calculation).filter(Calculation.id == calculation_id).first()
+    db_calc = db.query(Calculation).filter(Calculation.id == calculation_id, Calculation.user_id == current_user.id).first()
     if not db_calc:
         raise HTTPException(status_code=404, detail="Calculation not found")
     
@@ -124,13 +149,13 @@ def edit_calculation(calculation_id: int, calc: CalculationCreate, db: Session =
 
 
 @router.delete("/{calculation_id}")
-def delete_calculation(calculation_id: int, db: Session = Depends(get_db)):
+def delete_calculation(calculation_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     DELETE: Remove a calculation (DELETE /calculations/{id})
     """
-    db_calc = db.query(Calculation).filter(Calculation.id == calculation_id).first()
+    db_calc = db.query(Calculation).filter(Calculation.id == calculation_id, Calculation.user_id == current_user.id).first()
     if not db_calc:
-        raise HTTPException(status_code=404, detail="Calculation not found")
+        raise HTTPException(status_code=404, detail="Calculation not found or not owned by current user")
     
     db.delete(db_calc)
     db.commit()

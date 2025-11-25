@@ -11,86 +11,100 @@ This repository contains a FastAPI application that implements JWT‑based user 
 - Static front‑end pages (`static/register.html`, `static/login.html`) with client‑side validation
 - Playwright browser E2E tests covering positive and negative flows
 - GitHub Actions workflow to run tests and build/push Docker images to Docker Hub
+# Module 14 — Calculations BREAD (Browse, Read, Edit, Add, Delete)
 
-## 🚀 How to Run Locally
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/dmartino74/module13_is601.git
-   cd module13_is601
-Create and Activate Virtual Environment
+This repository contains a FastAPI application for user registration/login and a calculations API with full BREAD functionality for authenticated users. It includes unit, integration, and Playwright E2E tests and a GitHub Actions CI workflow that runs tests and builds/pushes a Docker image.
 
-bash
-python3 -m venv .venv
-source .venv/bin/activate   # Mac/Linux
-.venv\Scripts\activate.bat  # Windows
-Install Dependencies
+Contents
+- `app/` — FastAPI application
+- `static/` — static pages including `calculations.html` (BREAD demo)
+- `tests/` — unit, integration, and E2E tests (Playwright)
+- `.github/workflows/ci.yml` — CI pipeline (tests + Docker build/push)
+- `create_tables.py` — helper to create DB tables
 
-bash
+Quick start (local)
+1. Clone and enter repo
+
+```bash
+git clone https://github.com/dmartino74/module14_is601.git
+cd module14_is601
+```
+
+2. Create and activate a virtual environment
+
+```bash
+python3 -m venv myenv
+source myenv/bin/activate
+```
+
+3. Install dependencies
+
+```bash
 pip install -r requirements.txt
-python -m pip install pytest-playwright
 python -m playwright install --with-deps
-Start the App
+```
 
-bash
+4. Start the application
+
+```bash
 uvicorn app.main:app --reload
-The app will serve static pages at http://localhost:8000/static/.
+```
 
-🧪 Run Tests
-Run all tests (unit, integration, E2E):
+Open `http://127.0.0.1:8000/static/calculations.html` to try the BREAD demo UI.
 
-bash
+Running tests
+- Unit & Integration tests (fast, use in-memory DB for integration tests where configured):
+
+```bash
+pytest tests/unit tests/integration -q
+```
+
+- Full test suite (includes E2E / Playwright). Playwright tests need browsers installed (done above) and a running DB for certain E2E flows. To run all tests locally you can set `DATABASE_URL` to a Postgres instance, or run the full test suite in CI where Postgres service is provided.
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fastapi_db
 pytest -q
-Unit and integration tests run against an in‑memory SQLite DB by default.
+```
 
-Playwright E2E tests require a running database. In CI, a Postgres service is used. Locally, set DATABASE_URL to a running Postgres instance or adjust to your environment.
+CI (GitHub Actions)
+- The workflow at `.github/workflows/ci.yml` runs on push/PR to `main`. It:
+   - Starts a Postgres service
+   - Installs Python deps and Playwright browsers
+   - Runs `create_tables.py` to create DB schema
+   - Runs `pytest`
+   - Builds and pushes a Docker image when tests pass
 
-🐳 Docker
-Build and run the image locally:
+GitHub Secrets required for Docker push
+- `DOCKER_USERNAME` — your Docker Hub username
+- `DOCKER_PASSWORD` — your Docker Hub password or access token
 
-bash
-docker build -t module13_is601:latest .
-docker run -d -p 8000:8000 --name module13_container module13_is601:latest
-🔁 CI/CD Pipeline
-GitHub Actions automates:
+Add those in the repository Settings → Secrets before pushing to enable Docker push.
 
-🧪 Test job: runs pytest (unit, integration, Playwright E2E) on each push/PR
+Docker (local)
 
-🐳 Docker job: builds and pushes image to Docker Hub if tests pass
+```bash
+docker build -t <your-docker-username>/module14_is601:latest .
+docker run -p 8000:8000 --env DATABASE_URL="postgresql://..." <your-docker-username>/module14_is601:latest
+```
 
-📎 Submission Checklist
-[x] JWT registration & login endpoints
+Playwright E2E
+- Install browsers once (done above): `python -m playwright install --with-deps`
+- Run E2E tests:
 
-[x] Pydantic validation for user inputs
+```bash
+pytest -q tests/e2e -k calculations
+```
 
-[x] Front‑end register.html and login.html with client‑side validation
+Notes about environment and tests
+- Integration tests in `tests/integration` were updated to register and use temporary users (JWT) before calling `/calculations`. This scopes calculations to the authenticated user.
+- CI uses Postgres service and runs `create_tables.py` to ensure tables exist (we added that step to the workflow).
+- If you prefer to run CI without Playwright browser installation, I can make Playwright optional in the workflow.
 
-[x] Playwright browser E2E tests added (positive and negative flows)
+Reflection & Submission Checklist
+- Implemented: BREAD endpoints for calculations (user-scoped), frontend demo page, integration & Playwright tests, CI workflow that runs tests and builds Docker image.
+- Still to collect: screenshots of a successful GitHub Actions run and a Docker Hub image push (these require the workflow to run with `DOCKER_*` secrets configured).
 
-[x] GitHub Actions workflow runs tests and builds Docker image
-
-[x] Coverage report generated (htmlcov)
-
-🧠 Reflection
-This module reinforced key backend and DevOps skills:
-
-Implemented secure authentication with bcrypt and JWT
-
-Integrated client‑side validation with front‑end pages
-
-Automated testing across unit, integration, and browser E2E layers
-
-Used GitHub Actions to automate CI/CD and Docker deployment
-
-Debugged flaky Playwright tests and applied xfail markers to keep the pipeline green
-
-Challenges included aligning client‑side validation with Playwright expectations, handling bcrypt’s 72‑byte password limit, and ensuring reproducible CI/CD runs with Postgres in GitHub Actions.
-
-Code
-
----
-
-This version is streamlined: no leftover Module 12 content, clear instructions, and a reflection section that matches your actual experience (bcrypt limit, Playwright flakiness, CI/CD).  
-
-You can now add screenshots (GitHub Actions run, Playwright output, front‑end pages) and your Docker Hub link to finalize submission.  
-
-Would you like me to also draft the **reflection document** in a narrative style (separate
+If you want, I can now:
+- Update `reflection.md` with a narrative reflection (I will add that next),
+- Add placeholders for screenshots and guidance on how to capture them,
+- Or trigger additional changes you prefer.

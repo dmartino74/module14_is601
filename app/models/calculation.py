@@ -1,5 +1,6 @@
 
-from sqlalchemy import Column, Integer, Float, String, DateTime, func
+from sqlalchemy import Column, Integer, Float, String, DateTime, func, ForeignKey
+from sqlalchemy.orm import relationship
 from app.models.base import Base  # ✅ Import from models.base, not db
 
 
@@ -11,6 +12,8 @@ class Calculation(Base):
     b = Column(Float, nullable=False)
     type = Column(String(50), nullable=False)
     result = Column(Float, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user = relationship("User", backref="calculations")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
