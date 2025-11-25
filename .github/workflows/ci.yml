@@ -98,8 +98,14 @@ jobs:
   docker:
     name: Build and push Docker image
     needs: test
-    if: ${{ secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD }}
     runs-on: ubuntu-latest
+    # Expose Docker credentials into job env and check `env` in the `if` expression.
+    # Direct use of `secrets.*` in job-level `if` may be unavailable during parsing
+    # which can trigger an "Unrecognized named-value: 'secrets'" error.
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+    if: ${{ env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
 
