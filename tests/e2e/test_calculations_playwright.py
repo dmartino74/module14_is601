@@ -10,24 +10,25 @@ def test_calculations_bread_positive(page, server_url):
 
     page.goto(f"{server_url}/static/calculations.html")
 
-        # Register and wait for confirmation message
-        page.fill('#reg_username', username)
-        page.fill('#reg_email', email)
-        page.fill('#reg_password', password)
-        page.click('#btn_register')
-        # wait until auth message shows success text
-        page.wait_for_selector('#auth_msg')
-        auth_text = page.locator('#auth_msg').inner_text(timeout=5000)
-        assert 'registered' in auth_text.lower() or 'login' in auth_text.lower()
+    # Register and wait for confirmation message
+    page.fill('#reg_username', username)
+    page.fill('#reg_email', email)
+    page.fill('#reg_password', password)
+    page.click('#btn_register')
+    # wait until auth message shows success text
+    page.wait_for_selector('#auth_msg')
+    auth_text = page.locator('#auth_msg').inner_text(timeout=5000)
+    assert 'registered' in auth_text.lower() or 'login' in auth_text.lower()
 
     page.fill('#a', '6')
     page.fill('#b', '7')
     page.select_option('#type', 'multiply')
-        page.click('#btn_create')
-        # wait for create result message
-        page.wait_for_selector('#create_msg')
-        create_text = page.locator('#create_msg').inner_text(timeout=5000)
-        assert create_text != ''
+
+    page.click('#btn_create')
+    # wait for create result message
+    page.wait_for_selector('#create_msg')
+    create_text = page.locator('#create_msg').inner_text(timeout=5000)
+    assert create_text != ''
 
     page.wait_for_timeout(200)
     page.click('#btn_list')
