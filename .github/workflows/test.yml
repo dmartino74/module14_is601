@@ -152,16 +152,27 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to DockerHub (runtime)
-        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
+      - name: Check Docker credentials for deploy
+        id: check_creds
+        run: |
+          if [ -n "${{ secrets.DOCKER_USERNAME }}" ] && [ -n "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "Docker credentials not available for push"
+          fi
+
+      - name: Log in to DockerHub
+        if: steps.check_creds.outputs.has_creds == 'true'
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login --username "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build and push image
-        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
+        if: steps.check_creds.outputs.has_creds == 'true'
         run: |
-          docker buildx build --platform linux/amd64,linux/arm64 --push \
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --push \
+            --cache-to type=inline,mode=max \
             -t dmartino74/module14_is601:latest \
             -t dmartino74/module14_is601:${{ github.sha }} .
-          cache-to: type=inline,mode=max
 
